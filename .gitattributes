@@ -1,0 +1,5 @@
+* text=auto
+*.js text eol=lf
+dist/freebox-card.js linguist-vendored=false
+dist/freebox-card.js linguist-generated=false
+dist/freebox-card.js linguist-detectable=true
