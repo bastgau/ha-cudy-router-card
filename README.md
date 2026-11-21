@@ -6,9 +6,13 @@ Dérivée de [Freebox Card](https://github.com/KroFR/freebox-ha-card) de KroFR (
 
 ## Détection des entités
 
-La card ne s'appuie jamais sur les noms ou entity_id. Tu choisis l'**appareil** routeur (`device_id`) ; les entités sont retrouvées dans le registre : plateforme `cudy_router`, même config entry, suffixe du `unique_id` (`<groupe>-<clé>`, ex. `devices-total_down_speed`). Sans `device_id`, le premier routeur Cudy trouvé est utilisé. Un rôle peut être forcé avec `entities:`.
+Tout est lu dans `hass.entities` et `hass.devices` : la card fonctionne pour **tous les utilisateurs**, pas seulement les administrateurs. Tu choisis l'**appareil** routeur (`device_id` ; sans lui, le premier routeur Cudy trouvé est utilisé). Dans cet appareil, pour chaque rôle, la card essaie dans l'ordre :
 
-> Le registre est lu via la commande websocket `config/entity_registry/list`, réservée aux administrateurs.
+1. la `translation_key` de l'entité (si l'intégration en définit une) ;
+2. l'`entity_id` construit avec le préfixe de l'appareil et le rôle (le bouton `button.<préfixe>reboot` donne le préfixe) ;
+3. l'`entity_id` le plus court qui se termine par le nom du rôle.
+
+Renommer le *nom affiché* d'une entité ne change rien. Si un `entity_id` est renommé, forcer le rôle avec `entities:`.
 
 ## Installation
 

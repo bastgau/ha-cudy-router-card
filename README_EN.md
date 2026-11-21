@@ -6,9 +6,13 @@ Derived from [Freebox Card](https://github.com/KroFR/freebox-ha-card) by KroFR (
 
 ## How entities are found
 
-The card never relies on entity names or ids. You pick the router **device** (`device_id`); entities are resolved from the entity registry: platform `cudy_router`, same config entry, and the `unique_id` suffix (`<group>-<key>`, e.g. `devices-total_down_speed`). Without `device_id`, the first Cudy router found is used. A role can be overridden with `entities:`.
+Everything is read from `hass.entities` and `hass.devices`, so the card works for **every user**, not only administrators. You pick the router **device** (`device_id`; without it, the first Cudy router found is used). In that device, for each role the card tries, in order:
 
-> The entity registry is read through the `config/entity_registry/list` websocket command, which requires an administrator user.
+1. the `translation_key` of the entity (if the integration sets one);
+2. the `entity_id` built from the device prefix and the role (`button.<prefix>reboot` gives the prefix);
+3. the shortest `entity_id` ending with the role name.
+
+Renaming an entity's *display name* changes nothing. If an `entity_id` is renamed, force the role with `entities:`.
 
 ## Installation
 

@@ -66,38 +66,44 @@ function resolveLanguage(hass, configured = "auto") {
 
 /* ---------------------------------------------------------------------- */
 /*  Entity roles                                                          */
-/*  Entities are identified through the entity registry: platform         */
-/*  "cudy_router", same config entry, and the unique_id suffix            */
-/*  "<group>-<key>" (the "<config_entry_id>-" prefix is stripped).        */
-/*  Names and entity_ids are never used.                                  */
+/*  Everything comes from hass.entities / hass.devices, which every user  */
+/*  can read (no admin-only websocket call). The scope is the router      */
+/*  device (device_id) and the platform "cudy_router". A role is "domain:slug":  */
+/*   1. translation_key === slug, when the integration sets one;          */
+/*   2. entity_id === "<domain>.<device prefix><slug>", the prefix being   */
+/*      learned from the reboot button;                                    */
+/*   3. the shortest entity_id ending with "_<slug>".                      */
+/*  Renaming an entity's display name changes nothing. Renaming an         */
+/*  entity_id can be handled with the "entities:" override.               */
 /* ---------------------------------------------------------------------- */
 const ROLES = {
-	download: "sensor:devices-total_down_speed", upload: "sensor:devices-total_up_speed",
-	sessionDownload: "sensor:wan-session_download", sessionUpload: "sensor:wan-session_upload",
-	connectedTime: "sensor:wan-connected_time", publicIp: "sensor:wan-public_ip", wanIp: "sensor:wan-wan_ip",
-	protocol: "sensor:wan-protocol", wanGateway: "sensor:wan-gateway", dns: "sensor:wan-dns",
-	firmware: "sensor:system-firmware_version", uptime: "sensor:system-uptime", cpu: "sensor:system-cpu_usage",
-	ram: "sensor:system-ram_usage", localTime: "sensor:system-local_time",
-	lanIp: "sensor:lan-ip_address", lanMac: "sensor:lan-mac_address", subnet: "sensor:lan-subnet_mask",
+	download: "sensor:total_download_speed", upload: "sensor:total_upload_speed",
+	sessionDownload: "sensor:session_download", sessionUpload: "sensor:session_upload",
+	connectedTime: "sensor:connected_time", publicIp: "sensor:public_ip", wanIp: "sensor:wan_ip",
+	protocol: "sensor:protocol", wanGateway: "sensor:gateway", dns: "sensor:dns",
+	firmware: "sensor:firmware_version", uptime: "sensor:uptime", cpu: "sensor:cpu_usage",
+	ram: "sensor:ram_usage", localTime: "sensor:local_time",
+	lanIp: "sensor:lan_ip", lanMac: "sensor:lan_mac", subnet: "sensor:subnet_mask",
 	reboot: "button:reboot",
-	totalClients: "sensor:devices-total_clients", wiredClients: "sensor:devices-wired_clients", meshClients: "sensor:mesh-mesh_count",
-	topDownHost: "sensor:devices-top_downloader_hostname", topDownSpeed: "sensor:devices-top_downloader_speed",
-	topUpHost: "sensor:devices-top_uploader_hostname", topUpSpeed: "sensor:devices-top_uploader_speed",
-	smartConnect: "switch:wireless_settings-smart_connect",
-	vpnEnabled: "switch:vpn_settings-enabled", vpnSite: "switch:vpn_settings-site_to_site", vpnClients: "sensor:vpn-vpn_clients",
-	vpnProtocol: "sensor:vpn-protocol", vpnPolicy: "select:vpn_settings-vpn_policy", vpnAccess: "select:vpn_settings-client_access",
-	vpnRule: "select:vpn_settings-default_rule",
-	wispStatus: "sensor:wisp-status", wispEnabled: "switch:wisp-enabled", wispNetwork: "select:wisp-network",
-	wispScan: "button:wisp-scan", wispConnect: "button:wisp-connect",
+	totalClients: "sensor:total_clients", wiredClients: "sensor:wired_clients", meshClients: "sensor:mesh_devices_connected",
+	topDownHost: "sensor:top_downloader_hostname", topDownSpeed: "sensor:top_downloader_speed",
+	topUpHost: "sensor:top_uploader_hostname", topUpSpeed: "sensor:top_uploader_speed",
+	smartConnect: "switch:smart_connect",
+	vpnEnabled: "switch:vpn_enabled", vpnSite: "switch:vpn_site_to_site", vpnClients: "sensor:vpn_clients",
+	vpnProtocol: "sensor:vpn_protocol", vpnPolicy: "select:vpn_policy", vpnAccess: "select:vpn_client_access",
+	vpnRule: "select:vpn_default_rule",
+	wispStatus: "sensor:wisp_status", wispEnabled: "switch:wisp_enabled", wispNetwork: "select:wisp_network",
+	wispScan: "button:wisp_scan", wispConnect: "button:wisp_connect",
 };
-for (const band of ["2g", "5g"]) {
+// Role prefix used in the card ("2g", "5g") and the band as written in the entity names.
+for (const [band, slug] of [["2g", "2_4g"], ["5g", "5g"]]) {
 	Object.assign(ROLES, {
-		[`wifi${band}Ssid`]: `sensor:wifi_${band}-ssid`, [`wifi${band}Channel`]: `sensor:wifi_${band}-channel`,
-		[`wifi${band}Clients`]: `sensor:devices-wifi_${band}_clients`,
-		[`wifi${band}Enabled`]: `switch:wireless_settings-wifi_${band}_enabled`, [`wifi${band}Hidden`]: `switch:wireless_settings-wifi_${band}_hidden`,
-		[`wifi${band}Isolate`]: `switch:wireless_settings-wifi_${band}_isolate`,
-		[`wifi${band}ChannelSelect`]: `select:wireless_settings-wifi_${band}_channel`, [`wifi${band}Mode`]: `select:wireless_settings-wifi_${band}_mode`,
-		[`wifi${band}Width`]: `select:wireless_settings-wifi_${band}_channel_width`, [`wifi${band}Power`]: `select:wireless_settings-wifi_${band}_tx_power`,
+		[`wifi${band}Ssid`]: `sensor:wifi_${slug}_ssid`, [`wifi${band}Channel`]: `sensor:wifi_${slug}_channel`,
+		[`wifi${band}Clients`]: `sensor:wifi_${slug}_clients`,
+		[`wifi${band}Enabled`]: `switch:wifi_${slug}_enabled`, [`wifi${band}Hidden`]: `switch:wifi_${slug}_hidden_network`,
+		[`wifi${band}Isolate`]: `switch:wifi_${slug}_separate_clients`,
+		[`wifi${band}ChannelSelect`]: `select:wifi_${slug}_channel`, [`wifi${band}Mode`]: `select:wifi_${slug}_mode`,
+		[`wifi${band}Width`]: `select:wifi_${slug}_channel_width`, [`wifi${band}Power`]: `select:wifi_${slug}_transmit_power`,
 	});
 }
 
@@ -124,10 +130,8 @@ class CudyRouterCard extends HTMLElement {
 	constructor() {
 		super();
 		this.attachShadow({ mode: "open" });
-		this._registry = [];
-		this._registryLoaded = false;
-		this._registryLoading = false;
 		this._index = null;
+		this._indexEntities = null;
 		this._signature = "";
 		this._collapsed = {};
 		this._open = {};
@@ -161,7 +165,6 @@ class CudyRouterCard extends HTMLElement {
 
 	set hass(hass) {
 		this._hass = hass;
-		this._loadRegistry();
 		const signature = this._computeSignature();
 		if (signature === this._signature) return;
 		this._signature = signature;
@@ -185,50 +188,47 @@ class CudyRouterCard extends HTMLElement {
 		return new Intl.NumberFormat(this._locale(), { maximumFractionDigits: digits }).format(value);
 	}
 
-	/* ----- registry & role resolution ----- */
-	async _loadRegistry() {
-		if (!this._hass?.connection || this._registryLoaded || this._registryLoading) return;
-		this._registryLoading = true;
-		try {
-			const entities = await this._hass.connection.sendMessagePromise({ type: "config/entity_registry/list" });
-			this._registry = Array.isArray(entities) ? entities.filter((entry) => entry.platform === CUDY_PLATFORM) : [];
-			this._registryLoaded = true;
-		} catch (error) {
-			console.warn("[cudy-router-card] Unable to load the entity registry (admin access required)", error);
-			this._registryLoaded = true;
-		} finally {
-			this._registryLoading = false;
-			this._index = null;
-			this._signature = "";
-			this._signature = this._computeSignature();
-			this._render();
-		}
-	}
+	/* ----- device & role resolution (hass.entities / hass.devices, no admin needed) ----- */
+	_ownEntries() { return Object.values(this._hass?.entities || {}).filter((entry) => entry.platform === CUDY_PLATFORM); }
+	_isReboot(entry) { return entry.entity_id.startsWith("button.") && (entry.translation_key === "reboot" || /_reboot$/.test(entry.entity_id)); }
 
 	/** Router device: configured, or the first device exposing the router "reboot" button. */
 	_deviceId() {
 		if (this._config?.device_id) return this._config.device_id;
-		return this._registry.find((entry) => entry.device_id && /-reboot$/.test(entry.unique_id || ""))?.device_id || "";
+		return this._ownEntries().find((entry) => entry.device_id && this._isReboot(entry))?.device_id || "";
 	}
 
-	/** Build { "domain:group-key": entity_id } for the config entry of the selected device. */
+	_resolveRole(mine, prefix, key) {
+		const [domain, slug] = key.split(":");
+		const inDomain = mine.filter((entry) => entry.entity_id.startsWith(`${domain}.`));
+		const byKey = inDomain.find((entry) => entry.translation_key === slug);
+		if (byKey) return byKey.entity_id;
+		const exact = prefix ? inDomain.find((entry) => entry.entity_id === `${domain}.${prefix}${slug}`) : undefined;
+		if (exact) return exact.entity_id;
+		const objectId = (entry) => entry.entity_id.split(".")[1];
+		return inDomain.filter((entry) => objectId(entry) === slug || objectId(entry).endsWith(`_${slug}`))
+			.sort((a, b) => objectId(a).length - objectId(b).length)[0]?.entity_id;
+	}
+
+	/** Build { role: entity_id } for the selected router device, plus its connected-device trackers. */
 	_buildIndex() {
-		if (this._index) return this._index;
+		const entities = this._hass?.entities;
+		if (this._index && this._indexEntities === entities) return this._index;
 		const deviceId = this._deviceId();
-		const entryId = this._registry.find((entry) => entry.device_id === deviceId)?.config_entry_id;
-		const roles = {}, trackers = [];
-		if (entryId) {
-			const byKey = {};
-			for (const entry of this._registry) {
-				if (entry.config_entry_id !== entryId || entry.disabled_by) continue;
-				const domain = entry.entity_id.split(".")[0];
-				if (domain === "device_tracker") { trackers.push(entry); continue; }
-				if (entry.unique_id?.startsWith(`${entryId}-`)) byKey[`${domain}:${entry.unique_id.slice(entryId.length + 1)}`] = entry.entity_id;
-			}
-			for (const [role, key] of Object.entries(ROLES)) if (byKey[key]) roles[role] = byKey[key];
+		const entryId = this._hass?.devices?.[deviceId]?.primary_config_entry;
+		const own = this._ownEntries();
+		const mine = own.filter((entry) => entry.device_id === deviceId && !entry.entity_id.startsWith("device_tracker."));
+		const reboot = mine.find((entry) => this._isReboot(entry));
+		const prefix = reboot ? reboot.entity_id.split(".")[1].replace(/reboot$/, "") : "";
+		const roles = {};
+		for (const [role, key] of Object.entries(ROLES)) {
+			const entityId = this._resolveRole(mine, prefix, key);
+			if (entityId) roles[role] = entityId;
 		}
 		Object.assign(roles, this._config.entities || {});
+		const trackers = entryId ? own.filter((entry) => entry.entity_id.startsWith("device_tracker.") && this._hass.devices?.[entry.device_id]?.primary_config_entry === entryId) : [];
 		this._index = { deviceId, entryId, roles, trackers };
+		this._indexEntities = entities;
 		return this._index;
 	}
 
@@ -245,7 +245,7 @@ class CudyRouterCard extends HTMLElement {
 		const index = this._buildIndex();
 		const ids = [...Object.values(index.roles), ...index.trackers.map((entry) => entry.entity_id)];
 		const states = ids.map((id) => { const state = this._hass.states[id]; return state ? [id, state.state, state.attributes?.unit_of_measurement || "", state.attributes?.options?.length || 0] : [id, null]; });
-		return JSON.stringify({ config: this._config, lang: this._lang(), dark: Boolean(this._hass.themes?.darkMode), registry: this._registryLoaded, device: index.deviceId, states });
+		return JSON.stringify({ config: this._config, lang: this._lang(), dark: Boolean(this._hass.themes?.darkMode), device: index.deviceId, states });
 	}
 
 	/* ----- formatting ----- */
@@ -539,7 +539,7 @@ class CudyRouterCard extends HTMLElement {
 		const config = this._config;
 		let content;
 		if (!this._hass) content = `<div class="empty">${this._esc(this._t("loading"))}</div>`;
-		else if (this._registryLoaded && !this._buildIndex().entryId) content = `<div class="empty">${this._esc(this._t("no_device"))}</div>`;
+		else if (!this._buildIndex().deviceId) content = `<div class="empty">${this._esc(this._t("no_device"))}</div>`;
 		else {
 			const order = [...new Set([...config.section_order, ...SECTIONS])];
 			const builders = { internet: () => this._internetSection(), system: () => this._systemSection(), wifi: () => this._wifiSection(), devices: () => this._devicesSection(), vpn: () => this._vpnSection(), wisp: () => this._wispSection() };
