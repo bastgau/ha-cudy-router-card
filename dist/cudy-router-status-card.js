@@ -25,7 +25,11 @@ const TRANSLATIONS = {
 		session_upload: "Session upload", gateway: "Gateway", dns: "DNS",
 		firmware: "Firmware", uptime: "Uptime", cpu: "CPU", ram: "RAM", lan_ip: "LAN IP", lan_mac: "LAN MAC", subnet: "Subnet mask", local_time: "Router time",
 		reboot: "Reboot", reboot_router: "Reboot the router",
-		band_2g: "2.4 GHz", band_5g: "5 GHz", ssid: "SSID", channel: "Channel", clients: "Clients", enabled: "Enabled", hidden: "Hidden network",
+		band_2g: "2.4 GHz Band", band_5g: "5 GHz Band",
+		sub_resources: "Resources", sub_system_info: "System information", sub_local_network: "Local network", sub_actions: "Actions",
+		sub_address_range: "Address range", sub_client_options: "Options sent to clients", sub_lease: "Lease",
+		sub_overview: "Overview", sub_top_traffic: "Top traffic", sub_device_list: "Device list",
+		sub_status: "Status", sub_access_rules: "Access rules", sub_advanced: "Advanced", sub_global_settings: "Global settings", ssid: "SSID", channel: "Channel", clients: "Clients", enabled: "Enabled", hidden: "Hidden network",
 		separate_clients: "Client isolation", mode: "Mode", width: "Channel width", power: "Transmit power", smart_connect: "Smart Connect",
 		total_clients: "Total clients", wired_clients: "Wired", wifi_clients: "Wi-Fi", mesh_devices: "Mesh devices",
 		top_downloader: "Top downloader", top_uploader: "Top uploader", connected: "Connected", disconnected: "Disconnected", total: "Total",
@@ -46,7 +50,11 @@ const TRANSLATIONS = {
 		session_upload: "Envoyé (session)", gateway: "Passerelle", dns: "DNS",
 		firmware: "Firmware", uptime: "Disponibilité", cpu: "CPU", ram: "RAM", lan_ip: "IP LAN", lan_mac: "MAC LAN", subnet: "Masque de sous-réseau", local_time: "Heure du routeur",
 		reboot: "Redémarrer", reboot_router: "Redémarrer le routeur",
-		band_2g: "2,4 GHz", band_5g: "5 GHz", ssid: "SSID", channel: "Canal", clients: "Clients", enabled: "Activé", hidden: "Réseau masqué",
+		band_2g: "Bande 2,4 GHz", band_5g: "Bande 5 GHz",
+		sub_resources: "Ressources", sub_system_info: "Informations système", sub_local_network: "Réseau local", sub_actions: "Actions",
+		sub_address_range: "Plage d'adresses", sub_client_options: "Options envoyées aux clients", sub_lease: "Bail",
+		sub_overview: "Vue d'ensemble", sub_top_traffic: "Plus gros trafic", sub_device_list: "Liste des appareils",
+		sub_status: "État", sub_access_rules: "Règles d'accès", sub_advanced: "Avancé", sub_global_settings: "Réglages généraux", ssid: "SSID", channel: "Canal", clients: "Clients", enabled: "Activé", hidden: "Réseau masqué",
 		separate_clients: "Isolation des clients", mode: "Mode", width: "Largeur de canal", power: "Puissance d'émission", smart_connect: "Smart Connect",
 		total_clients: "Clients au total", wired_clients: "Filaires", wifi_clients: "Wi-Fi", mesh_devices: "Appareils mesh",
 		top_downloader: "Plus gros téléchargement", top_uploader: "Plus gros envoi", connected: "Connectés", disconnected: "Déconnectés", total: "Total",
@@ -430,6 +438,12 @@ class CudyRouterStatusCard extends HTMLElement {
 			<div class="section-body">${body}</div></section>`;
 	}
 
+	/** A subtitle followed by its content; nothing at all when the content is empty. */
+	_group(titleKey, content, cssClass = "rows") {
+		if (!content || !content.trim()) return "";
+		return `<div class="group"><div class="subsection-title">${this._esc(this._t(titleKey))}</div><div class="${cssClass}">${content}</div></div>`;
+	}
+
 	_internetSection() {
 		const metrics = [this._metric("download", "download"), this._metric("upload", "upload")].filter(Boolean).join("");
 		const live = this._config.show_live_metrics && metrics ? `<div class="subsection-title">${this._esc(this._t("live_bandwidth"))}</div><div class="metrics">${metrics}</div>` : "";
@@ -448,18 +462,20 @@ class CudyRouterStatusCard extends HTMLElement {
 
 	_systemSection() {
 		const bars = [this._bar("mdi:cpu-64-bit", this._t("cpu"), "cpu"), this._bar("mdi:memory", this._t("ram"), "ram")].join("");
-		const rows = [
+		const info = [
 			this._row("mdi:chip", this._t("firmware"), this._text("firmware"), "firmware"),
 			this._row("mdi:clock-outline", this._t("uptime"), this._durationOf("uptime"), "uptime"),
+			this._row("mdi:clock-time-four-outline", this._t("local_time"), this._text("localTime"), "localTime"),
+		].join("");
+		const network = [
 			this._row("mdi:ip-network-outline", this._t("lan_ip"), this._text("lanIp"), "lanIp"),
 			this._row("mdi:ethernet", this._t("lan_mac"), this._text("lanMac"), "lanMac"),
 			this._row("mdi:network-outline", this._t("subnet"), this._text("subnet"), "subnet"),
 			this._row("mdi:gate", this._t("gateway"), this._text("wanGateway"), "wanGateway"),
 			this._row("mdi:dns", this._t("dns"), this._text("dns"), "dns"),
-			this._row("mdi:clock-time-four-outline", this._t("local_time"), this._text("localTime"), "localTime"),
 		].join("");
 		const reboot = this._config.show_reboot_button ? this._button("reboot", this._t("reboot"), "mdi:restart", this._t("confirm_reboot")) : "";
-		return this._panel("system", `${bars ? `<div class="bars">${bars}</div>` : ""}<div class="rows">${rows}</div>${reboot ? `<div class="actions">${reboot}</div>` : ""}`);
+		return this._panel("system", `${this._group("sub_resources", bars, "bars")}${this._group("sub_system_info", info)}${this._group("sub_local_network", network)}${this._group("sub_actions", reboot, "actions")}`);
 	}
 
 	_wifiBand(band) {
@@ -477,7 +493,7 @@ class CudyRouterStatusCard extends HTMLElement {
 	_wifiSection() {
 		const bands = ["2g", "5g"].map((band) => this._wifiBand(band)).join("");
 		const smart = this._switch("smartConnect", this._t("smart_connect"));
-		return this._panel("wifi", `<div class="bands">${bands}</div>${smart ? `<div class="rows">${smart}</div>` : ""}`);
+		return this._panel("wifi", `${this._group("sub_global_settings", smart)}<div class="bands">${bands}</div>`);
 	}
 
 	_trackerLists() {
@@ -515,29 +531,31 @@ class CudyRouterStatusCard extends HTMLElement {
 		].join("");
 		const trackerTiles = total ? `${this._tile("mdi:lan-connect", this._t("connected"), String(trackers.home.length), "", "ok")}${this._tile("mdi:lan-disconnect", this._t("disconnected"), String(trackers.away.length), "", "off")}` : "";
 		const lists = `${this._trackerDetails("home", this._t("connected"), trackers.home)}${this._trackerDetails("away", this._t("disconnected"), trackers.away)}`;
-		return this._panel("devices", `${tiles || trackerTiles ? `<div class="tiles">${tiles}${trackerTiles}</div>` : ""}<div class="rows">${top}</div>${lists}`);
+		return this._panel("devices", `${this._group("sub_overview", `${tiles}${trackerTiles}`, "tiles")}${this._group("sub_top_traffic", top)}${this._group("sub_device_list", lists, "lists")}`);
 	}
 
 	_vpnSection() {
-		const rows = [
+		const status = [
 			this._switch("vpnEnabled", this._t("vpn_enabled")),
 			this._row("mdi:lan-connect", this._t("vpn_protocol"), this._text("vpnProtocol"), "vpnProtocol"),
 			this._row("mdi:account-network", this._t("vpn_clients"), this._text("vpnClients"), "vpnClients"),
-			this._switch("vpnSite", this._t("vpn_site")),
-			this._select("vpnPolicy", this._t("vpn_policy")), this._select("vpnAccess", this._t("vpn_access")), this._select("vpnRule", this._t("vpn_rule")),
 		].join("");
-		return this._panel("vpn", `<div class="rows">${rows}</div>`);
+		const rules = [this._select("vpnPolicy", this._t("vpn_policy")), this._select("vpnAccess", this._t("vpn_access")), this._select("vpnRule", this._t("vpn_rule"))].join("");
+		const advanced = this._switch("vpnSite", this._t("vpn_site"));
+		return this._panel("vpn", `${this._group("sub_status", status)}${this._group("sub_access_rules", rules)}${this._group("sub_advanced", advanced)}`);
 	}
 
 	_dhcpSection() {
-		const rows = [
+		const range = [
 			this._row("mdi:ip-network", this._t("dhcp_ip_start"), this._text("dhcpStart"), "dhcpStart"),
 			this._row("mdi:ip-network-outline", this._t("dhcp_ip_end"), this._text("dhcpEnd"), "dhcpEnd"),
+		].join("");
+		const options = [
 			this._row("mdi:dns", this._t("dhcp_dns"), this._text("dhcpDns"), "dhcpDns"),
 			this._row("mdi:gate", this._t("dhcp_gateway"), this._text("dhcpGateway"), "dhcpGateway"),
-			this._row("mdi:timer-sand", this._t("dhcp_leasetime"), this._text("dhcpLeasetime"), "dhcpLeasetime"),
 		].join("");
-		return this._panel("dhcp", `<div class="rows">${rows}</div>`);
+		const lease = this._row("mdi:timer-sand", this._t("dhcp_leasetime"), this._text("dhcpLeasetime"), "dhcpLeasetime");
+		return this._panel("dhcp", `${this._group("sub_address_range", range)}${this._group("sub_client_options", options)}${this._group("sub_lease", lease)}`);
 	}
 
 	_wispSection() {
