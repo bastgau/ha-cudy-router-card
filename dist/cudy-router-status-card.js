@@ -1,5 +1,5 @@
 /*
- * Cudy Router Card for Home Assistant
+ * Cudy Router Status Card for Home Assistant
  * ===================================
  * Lovelace card for the "cudy_router" integration.
  *
@@ -123,8 +123,8 @@ const BOOLEAN_FIELDS = Object.keys(DEFAULTS).filter((key) => typeof DEFAULTS[key
 /* ---------------------------------------------------------------------- */
 /*  Main card                                                             */
 /* ---------------------------------------------------------------------- */
-class CudyRouterCard extends HTMLElement {
-	static getConfigElement() { return document.createElement("cudy-router-card-editor"); }
+class CudyRouterStatusCard extends HTMLElement {
+	static getConfigElement() { return document.createElement("cudy-router-status-card-editor"); }
 	static getStubConfig() { return {}; }
 
 	constructor() {
@@ -375,7 +375,7 @@ class CudyRouterCard extends HTMLElement {
 				}).filter(Boolean).sort((a, b) => a.timestamp - b.timestamp);
 			}
 		} catch (error) {
-			console.error("[cudy-router-card] Unable to load history", error);
+			console.error("[cudy-router-status-card] Unable to load history", error);
 		}
 		this._history = { key, loadedAt: Date.now(), loading: false, series };
 		this._render();
@@ -553,7 +553,7 @@ class CudyRouterCard extends HTMLElement {
 	}
 
 	/* ----- interactions ----- */
-	_collapsedKey() { return `cudy-router-card:collapsed:${this._config?.router_entity || "none"}`; }
+	_collapsedKey() { return `cudy-router-status-card:collapsed:${this._config?.router_entity || "none"}`; }
 	_loadCollapsed() { try { this._collapsed = JSON.parse(localStorage.getItem(this._collapsedKey()) || "{}") || {}; } catch (_error) { this._collapsed = {}; } }
 	_saveCollapsed() { try { localStorage.setItem(this._collapsedKey(), JSON.stringify(this._collapsed)); } catch (_error) { /* storage unavailable */ } }
 
@@ -663,7 +663,7 @@ class CudyRouterCard extends HTMLElement {
 /* ---------------------------------------------------------------------- */
 /*  Visual editor (ha-form)                                               */
 /* ---------------------------------------------------------------------- */
-class CudyRouterCardEditor extends HTMLElement {
+class CudyRouterStatusCardEditor extends HTMLElement {
 	setConfig(config) { this._config = config || {}; this._render(); }
 	set hass(hass) { this._hass = hass; if (this._form) this._form.hass = hass; }
 
@@ -699,14 +699,14 @@ class CudyRouterCardEditor extends HTMLElement {
 	}
 }
 
-customElements.define("cudy-router-card", CudyRouterCard);
-customElements.define("cudy-router-card-editor", CudyRouterCardEditor);
+customElements.define("cudy-router-status-card", CudyRouterStatusCard);
+customElements.define("cudy-router-status-card-editor", CudyRouterStatusCardEditor);
 window.customCards = window.customCards || [];
 window.customCards.push({
-	type: "cudy-router-card",
-	name: "Cudy Router Card",
+	type: "cudy-router-status-card",
+	name: "Cudy Router Status Card",
 	description: "Status and controls for a Cudy router (cudy_router integration).",
 	preview: false,
 	documentationURL: "https://github.com/bastgau/ha-cudy-router-card",
 });
-console.info(`%c CUDY-ROUTER-CARD %c ${CARD_VERSION} `, "color:#fff;background:#009fe3;font-weight:700", "color:#009fe3;background:#fff;font-weight:700");
+console.info(`%c CUDY-ROUTER-STATUS-CARD %c ${CARD_VERSION} `, "color:#fff;background:#009fe3;font-weight:700", "color:#009fe3;background:#fff;font-weight:700");

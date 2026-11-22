@@ -1,4 +1,4 @@
-# Cudy Router Card
+# Cudy Router Status Card
 
 Lovelace card for the `cudy_router` integration: live bandwidth, bandwidth history, router status, Wi-Fi (2.4 / 5 GHz), connected devices, VPN and WISP, with controls (switches, selects, reboot) protected by a confirmation dialog.
 
@@ -6,12 +6,12 @@ Derived from [Freebox Card](https://github.com/KroFR/freebox-ha-card) by KroFR (
 
 ## Installation
 
-HACS → Custom repositories → `https://github.com/bastgau/ha-cudy-router-card` (type *Dashboard*), then add the resource `/hacsfiles/ha-cudy-router-card/cudy-card.js`.
+HACS → Custom repositories → `https://github.com/bastgau/ha-cudy-router-card` (type *Dashboard*), then add the resource `/hacsfiles/ha-cudy-router-card/cudy-router-status-card.js`.
 
 ## Configuration
 
 ```yaml
-type: custom:cudy-router-card
+type: custom:cudy-router-status-card
 router_entity: button.network_cudy_router_reboot   # required
 name: Cudy
 download_bandwidth: 300      # Mbit/s, scale of the gauges
