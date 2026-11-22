@@ -637,6 +637,8 @@ class CudyRouterStatusCard extends HTMLElement {
 		.panel { background:var(--secondary-background-color, rgba(127,127,127,.08)); border-radius:12px; padding:12px 14px; }
 		.section-title { display:flex; align-items:center; gap:8px; font-weight:600; cursor:pointer; user-select:none; }
 		.section-title .chevron { margin-left:auto; color:var(--secondary-text-color); }
+		/* the glyph of mdi:router-network is drawn in the lower part of its 24px box: lift it by 4px */
+		.section-title ha-icon[icon="mdi:router-network"] { transform:translateY(-4px); }
 		.section-collapsed .section-body { display:none; }
 		.section-body { margin-top:10px; display:flex; flex-direction:column; gap:12px; }
 		.subsection-title { font-size:.8rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--primary-color); margin-bottom:6px; }
