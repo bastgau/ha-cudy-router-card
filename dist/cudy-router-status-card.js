@@ -670,7 +670,7 @@ class CudyRouterStatusCard extends HTMLElement {
 		.history-x { display:flex; justify-content:space-between; font-size:.7rem; color:var(--secondary-text-color); margin-top:4px; }
 		.history-empty { color:var(--secondary-text-color); padding:16px 0; text-align:center; }
 		.bars { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
-		.bar-head { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+		.bar-head { display:flex; align-items:center; gap:8px; margin-bottom:9px; }
 		.bar-head span { flex:1; color:var(--secondary-text-color); }
 		.bar-track { height:8px; border-radius:4px; background:var(--divider-color, rgba(127,127,127,.25)); overflow:hidden; }
 		.bar-fill { height:100%; border-radius:4px; transition:width .4s ease; }
