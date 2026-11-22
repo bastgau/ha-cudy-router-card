@@ -17,7 +17,7 @@ name: Cudy
 download_bandwidth: 300      # Mbit/s, scale of the gauges
 upload_bandwidth: 100
 history_hours: 24
-section_order: [internet, system, wifi, devices, vpn, wisp]
+section_order: [internet, system, dhcp, wifi, devices, vpn, wisp]
 show_wisp: false
 show_controls: true          # false = read-only
 entities:                    # optional override per role
@@ -32,9 +32,10 @@ entities:                    # optional override per role
 | `download_bandwidth`, `upload_bandwidth` | – | Maximum in Mbit/s (gauge colors) |
 | `history_hours` | `24` | 1 – 168 |
 | `section_order` | see above | Order of sections |
-| `show_internet`, `show_system`, `show_wifi`, `show_devices`, `show_vpn` | `true` | Sections |
+| `show_internet`, `show_system`, `show_dhcp`, `show_wifi`, `show_devices`, `show_vpn` | `true` | Show or hide a whole section |
 | `show_wisp` | `false` | WISP section |
 | `show_header`, `show_card_background`, `show_live_metrics`, `show_bandwidth_history`, `show_reboot_button` | `true` | Display |
+| `show_top_clients` | `true` | Show the top downloader / uploader rows of the Devices section |
 | `show_controls` | `true` | Allow switches, selects and buttons |
 | `entities` | – | Role → entity id override (see [Roles](#roles-and-entity-ids)) |
 
@@ -54,7 +55,7 @@ The integration does not set a `translation_key` on its entities, so matching re
 
 ## Roles and entity ids
 
-59 roles, with the entity id the card expects (`<prefix>` = see above, `network_cudy_router_` on the author's setup). Wi-Fi roles use `wifi_2_4g_` for 2.4 GHz and `wifi_5g_` for 5 GHz.
+64 roles, with the entity id the card expects (`<prefix>` = see above, `network_cudy_router_` on the author's setup). Wi-Fi roles use `wifi_2_4g_` for 2.4 GHz and `wifi_5g_` for 5 GHz.
 
 ### Internet
 
@@ -84,6 +85,16 @@ The integration does not set a `translation_key` on its entities, so matching re
 | `lanMac` | `sensor.<prefix>lan_mac` | LAN MAC |
 | `subnet` | `sensor.<prefix>subnet_mask` | LAN subnet mask |
 | `reboot` | `button.<prefix>reboot` | Reboot button (confirmation) |
+
+### DHCP
+
+| Role | Entity id | Used for |
+|---|---|---|
+| `dhcpStart` | `sensor.<prefix>ip_start` | First address of the DHCP range |
+| `dhcpEnd` | `sensor.<prefix>ip_end` | Last address of the DHCP range |
+| `dhcpDns` | `sensor.<prefix>preferred_dns` | DNS given to clients |
+| `dhcpGateway` | `sensor.<prefix>default_gateway` | Gateway given to clients |
+| `dhcpLeasetime` | `sensor.<prefix>leasetime` | Lease duration |
 
 ### Wi-Fi
 
@@ -151,6 +162,6 @@ Every `device_tracker` entity of the `cudy_router` platform attached to the rout
 
 ### Entities of the integration not used by the card
 
-`device_count`, `lan_arp_entries`, `ip_start`, `ip_end`, `leasetime`, `preferred_dns`, `default_gateway`, `wan_subnet_mask`, `top_downloader_mac`, `top_uploader_mac`, `auto_update`, `auto_update_time`, `wisp_password`. Any of them can still be displayed by assigning it to a role with `entities:`.
+`device_count`, `lan_arp_entries`, `wan_subnet_mask`, `top_downloader_mac`, `top_uploader_mac`, `auto_update`, `auto_update_time`, `wisp_password`. Any of them can still be displayed by assigning it to a role with `entities:`.
 
 Entities that are not created by the `cudy_router` integration (template helpers, command line sensors, even when attached to the router device) are ignored unless assigned with `entities:`.

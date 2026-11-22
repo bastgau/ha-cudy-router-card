@@ -9,15 +9,16 @@
 
 const CARD_VERSION = "0.1.0";
 const CUDY_PLATFORM = "cudy_router";
-const SECTIONS = ["internet", "system", "wifi", "devices", "vpn", "wisp"];
-const SECTION_ICONS = { internet: "mdi:speedometer", system: "mdi:router-network", wifi: "mdi:wifi", devices: "mdi:devices", vpn: "mdi:vpn", wisp: "mdi:access-point-network" };
+const SECTIONS = ["internet", "system", "dhcp", "wifi", "devices", "vpn", "wisp"];
+const SECTION_ICONS = { internet: "mdi:speedometer", system: "mdi:router-network", dhcp: "mdi:ip-network", wifi: "mdi:wifi", devices: "mdi:devices", vpn: "mdi:vpn", wisp: "mdi:access-point-network" };
 
 /* ---------------------------------------------------------------------- */
 /*  Languages                                                             */
 /* ---------------------------------------------------------------------- */
 const TRANSLATIONS = {
 	en: {
-		internet: "Internet", system: "Router", wifi: "Wi-Fi", devices: "Devices", vpn: "VPN", wisp: "WISP",
+		internet: "Internet", system: "Router", dhcp: "DHCP", wifi: "Wi-Fi", devices: "Devices", vpn: "VPN", wisp: "WISP",
+		dhcp_ip_start: "IP start", dhcp_ip_end: "IP end", dhcp_dns: "Preferred DNS", dhcp_gateway: "Default gateway", dhcp_leasetime: "Lease time",
 		download: "Download", upload: "Upload", live_bandwidth: "Live bandwidth", bandwidth_history: "Bandwidth history",
 		no_history: "No history available", unavailable: "Unavailable", of: "of",
 		public_ip: "Public IP", wan_ip: "WAN IP", protocol: "Protocol", connected_time: "Connected for", session_download: "Session download",
@@ -37,7 +38,8 @@ const TRANSLATIONS = {
 		expand_section: "Expand section", collapse_section: "Collapse section", d: "d", h: "h", min: "min",
 	},
 	fr: {
-		internet: "Internet", system: "Routeur", wifi: "Wi-Fi", devices: "Appareils", vpn: "VPN", wisp: "WISP",
+		internet: "Internet", system: "Routeur", dhcp: "DHCP", wifi: "Wi-Fi", devices: "Appareils", vpn: "VPN", wisp: "WISP",
+		dhcp_ip_start: "IP de début", dhcp_ip_end: "IP de fin", dhcp_dns: "DNS préféré", dhcp_gateway: "Passerelle par défaut", dhcp_leasetime: "Durée du bail",
 		download: "Téléchargement", upload: "Envoi", live_bandwidth: "Débit en direct", bandwidth_history: "Historique du débit",
 		no_history: "Aucun historique disponible", unavailable: "Indisponible", of: "de",
 		public_ip: "IP publique", wan_ip: "IP WAN", protocol: "Protocole", connected_time: "Connecté depuis", session_download: "Téléchargé (session)",
@@ -85,6 +87,8 @@ const ROLES = {
 	ram: "sensor:ram_usage", localTime: "sensor:local_time",
 	lanIp: "sensor:lan_ip", lanMac: "sensor:lan_mac", subnet: "sensor:subnet_mask",
 	reboot: "button:reboot",
+	dhcpStart: "sensor:ip_start", dhcpEnd: "sensor:ip_end", dhcpDns: "sensor:preferred_dns",
+	dhcpGateway: "sensor:default_gateway", dhcpLeasetime: "sensor:leasetime",
 	totalClients: "sensor:total_clients", wiredClients: "sensor:wired_clients", meshClients: "sensor:mesh_devices_connected",
 	topDownHost: "sensor:top_downloader_hostname", topDownSpeed: "sensor:top_downloader_speed",
 	topUpHost: "sensor:top_uploader_hostname", topUpSpeed: "sensor:top_uploader_speed",
@@ -111,9 +115,9 @@ const DEFAULTS = {
 	name: "",
 	language: "auto",
 	section_order: [...SECTIONS],
-	show_internet: true, show_system: true, show_wifi: true, show_devices: true, show_vpn: true, show_wisp: false,
+	show_internet: true, show_system: true, show_dhcp: true, show_wifi: true, show_devices: true, show_vpn: true, show_wisp: false,
 	show_header: true, show_card_background: true, show_bandwidth_history: true, show_live_metrics: true,
-	show_reboot_button: true, show_controls: true,
+	show_reboot_button: true, show_controls: true, show_top_clients: true,
 	history_hours: 24,
 };
 const STRING_FIELDS = ["name", "router_entity"];
@@ -505,7 +509,7 @@ class CudyRouterStatusCard extends HTMLElement {
 			this._tile("mdi:wifi", this._t("wifi_clients"), (() => { const sum = ["2g", "5g"].map((band) => this._numeric(`wifi${band}Clients`)).filter((v) => v !== undefined); return sum.length ? String(sum.reduce((a, b) => a + b, 0)) : undefined; })(), "wifi5gClients"),
 			this._tile("mdi:graph", this._t("mesh_devices"), this._text("meshClients"), "meshClients"),
 		].join("");
-		const top = [
+		const top = !this._config.show_top_clients ? "" : [
 			this._row("mdi:arrow-down-bold", this._t("top_downloader"), this._text("topDownHost") && `${this._text("topDownHost")} · ${this._speed("topDownSpeed")}`, "topDownHost"),
 			this._row("mdi:arrow-up-bold", this._t("top_uploader"), this._text("topUpHost") && `${this._text("topUpHost")} · ${this._speed("topUpSpeed")}`, "topUpHost"),
 		].join("");
@@ -523,6 +527,17 @@ class CudyRouterStatusCard extends HTMLElement {
 			this._select("vpnPolicy", this._t("vpn_policy")), this._select("vpnAccess", this._t("vpn_access")), this._select("vpnRule", this._t("vpn_rule")),
 		].join("");
 		return this._panel("vpn", `<div class="rows">${rows}</div>`);
+	}
+
+	_dhcpSection() {
+		const rows = [
+			this._row("mdi:ip-network", this._t("dhcp_ip_start"), this._text("dhcpStart"), "dhcpStart"),
+			this._row("mdi:ip-network-outline", this._t("dhcp_ip_end"), this._text("dhcpEnd"), "dhcpEnd"),
+			this._row("mdi:dns", this._t("dhcp_dns"), this._text("dhcpDns"), "dhcpDns"),
+			this._row("mdi:gate", this._t("dhcp_gateway"), this._text("dhcpGateway"), "dhcpGateway"),
+			this._row("mdi:timer-sand", this._t("dhcp_leasetime"), this._text("dhcpLeasetime"), "dhcpLeasetime"),
+		].join("");
+		return this._panel("dhcp", `<div class="rows">${rows}</div>`);
 	}
 
 	_wispSection() {
@@ -544,7 +559,7 @@ class CudyRouterStatusCard extends HTMLElement {
 		else if (this._buildIndex().problem) content = `<div class="empty">${this._esc(this._buildIndex().problem === "missing" ? this._t("choose_router") : this._t("router_invalid", { entity: this._config.router_entity }))}</div>`;
 		else {
 			const order = [...new Set([...config.section_order, ...SECTIONS])];
-			const builders = { internet: () => this._internetSection(), system: () => this._systemSection(), wifi: () => this._wifiSection(), devices: () => this._devicesSection(), vpn: () => this._vpnSection(), wisp: () => this._wispSection() };
+			const builders = { internet: () => this._internetSection(), system: () => this._systemSection(), dhcp: () => this._dhcpSection(), wifi: () => this._wifiSection(), devices: () => this._devicesSection(), vpn: () => this._vpnSection(), wisp: () => this._wispSection() };
 			content = order.filter((key) => config[`show_${key}`]).map((key) => builders[key]()).join("") || `<div class="empty">${this._esc(this._t("loading"))}</div>`;
 		}
 		const header = config.show_header ? `<div class="header"><ha-icon icon="mdi:router-wireless"></ha-icon>${this._esc(config.name || "Cudy")}</div>` : "";
@@ -668,7 +683,7 @@ class CudyRouterStatusCardEditor extends HTMLElement {
 	set hass(hass) { this._hass = hass; if (this._form) this._form.hass = hass; }
 
 	_schema() {
-		const toggles = ["show_header", "show_card_background", "show_live_metrics", "show_bandwidth_history", "show_controls", "show_reboot_button", ...SECTIONS.map((key) => `show_${key}`)];
+		const toggles = ["show_header", "show_card_background", "show_live_metrics", "show_bandwidth_history", "show_controls", "show_reboot_button", "show_top_clients", ...SECTIONS.map((key) => `show_${key}`)];
 		return [
 			{ name: "router_entity", required: true, selector: { entity: { domain: "button", integration: CUDY_PLATFORM } } },
 			{ name: "name", selector: { text: {} } },
