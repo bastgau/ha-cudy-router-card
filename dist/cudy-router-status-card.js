@@ -639,11 +639,10 @@ class CudyRouterStatusCard extends HTMLElement {
 		.section-title .chevron { margin-left:auto; color:var(--secondary-text-color); }
 		.section-collapsed .section-body { display:none; }
 		.section-body { margin-top:10px; display:flex; flex-direction:column; gap:12px; }
-		.subsection-title { font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:var(--secondary-text-color); margin-bottom:6px; }
+		.subsection-title { font-size:.8rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--primary-color); margin-bottom:6px; }
 		.subsection-title small { text-transform:none; margin-left:6px; }
 		.rows { display:flex; flex-direction:column; }
-		.row { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--divider-color, rgba(127,127,127,.2)); min-height:24px; }
-		.row:last-child { border-bottom:none; }
+		.row { display:flex; align-items:center; gap:10px; padding:6px 0; min-height:24px; }
 		.row ha-icon { color:var(--secondary-text-color); --mdc-icon-size:20px; flex:none; }
 		.row .label { flex:1; color:var(--secondary-text-color); }
 		.row strong { text-align:right; overflow-wrap:anywhere; }
