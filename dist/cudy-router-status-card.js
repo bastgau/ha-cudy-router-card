@@ -7,7 +7,7 @@
  * License: MIT
  */
 
-const CARD_VERSION = "0.1.0";
+const CARD_VERSION = "0.2.0";
 const CUDY_PLATFORM = "cudy_router";
 const SECTIONS = ["internet", "system", "dhcp", "wifi", "devices", "vpn", "wisp"];
 const SECTION_ICONS = { internet: "mdi:speedometer", system: "mdi:router-network", dhcp: "mdi:ip-network", wifi: "mdi:wifi", devices: "mdi:devices", vpn: "mdi:vpn", wisp: "mdi:access-point-network" };
