@@ -33,7 +33,7 @@ const TRANSLATIONS = {
 		wisp_status: "Status", wisp_enabled: "WISP enabled", wisp_network: "Network", wisp_scan: "Scan", wisp_connect: "Connect",
 		confirm_toggle_on: "Turn on “{name}”?", confirm_toggle_off: "Turn off “{name}”?", confirm_select: "Change “{name}” to “{value}”?",
 		confirm_reboot: "Reboot the router? The network will be unavailable for a few minutes.", confirm_press: "Run “{name}”?",
-		no_device: "No Cudy router found. Select a device in the card editor.", loading: "Loading…",
+		choose_router: "Select the router's Reboot button in the card editor (router_entity).", router_invalid: "“{entity}” is not the Reboot button of a Cudy router (expected button.<prefix>reboot).", loading: "Loading…",
 		expand_section: "Expand section", collapse_section: "Collapse section", d: "d", h: "h", min: "min",
 	},
 	fr: {
@@ -53,7 +53,7 @@ const TRANSLATIONS = {
 		wisp_status: "Statut", wisp_enabled: "WISP activé", wisp_network: "Réseau", wisp_scan: "Scanner", wisp_connect: "Connecter",
 		confirm_toggle_on: "Activer « {name} » ?", confirm_toggle_off: "Désactiver « {name} » ?", confirm_select: "Passer « {name} » sur « {value} » ?",
 		confirm_reboot: "Redémarrer le routeur ? Le réseau sera indisponible quelques minutes.", confirm_press: "Lancer « {name} » ?",
-		no_device: "Aucun routeur Cudy trouvé. Sélectionnez un appareil dans l'éditeur de la card.", loading: "Chargement…",
+		choose_router: "Sélectionnez le bouton Redémarrer du routeur dans l'éditeur de la card (router_entity).", router_invalid: "« {entity} » n'est pas le bouton Redémarrer d'un routeur Cudy (attendu : button.<préfixe>reboot).", loading: "Chargement…",
 		expand_section: "Développer la section", collapse_section: "Réduire la section", d: "j", h: "h", min: "min",
 	},
 };
@@ -66,14 +66,14 @@ function resolveLanguage(hass, configured = "auto") {
 
 /* ---------------------------------------------------------------------- */
 /*  Entity roles                                                          */
-/*  Everything comes from hass.entities / hass.devices, which every user  */
-/*  can read (no admin-only websocket call). The scope is the router      */
-/*  device (device_id) and the platform "cudy_router". A role is "domain:slug":  */
-/*   1. translation_key === slug, when the integration sets one;          */
-/*   2. entity_id === "<domain>.<device prefix><slug>", the prefix being   */
-/*      learned from the reboot button;                                    */
-/*   3. the shortest entity_id ending with "_<slug>".                      */
-/*  Renaming an entity's display name changes nothing. Renaming an         */
+/*  Everything comes from hass.entities, which every user can read (no    */
+/*  admin-only websocket call). The user picks the router's "Reboot"      */
+/*  button (router_entity): it gives the router device and the entity id  */
+/*  prefix. A role is "domain:slug", resolved among the cudy_router       */
+/*  entities of that device:                                              */
+/*   1. entity_id === "<domain>.<prefix><slug>";                          */
+/*   2. otherwise the shortest entity_id ending with "_<slug>".           */
+/*  Renaming an entity's display name changes nothing. A renamed          */
 /*  entity_id can be handled with the "entities:" override.               */
 /* ---------------------------------------------------------------------- */
 const ROLES = {
@@ -116,7 +116,7 @@ const DEFAULTS = {
 	show_reboot_button: true, show_controls: true,
 	history_hours: 24,
 };
-const STRING_FIELDS = ["name", "device_id"];
+const STRING_FIELDS = ["name", "router_entity"];
 const NUMBER_FIELDS = ["download_bandwidth", "upload_bandwidth", "history_hours"];
 const BOOLEAN_FIELDS = Object.keys(DEFAULTS).filter((key) => typeof DEFAULTS[key] === "boolean");
 
@@ -144,6 +144,7 @@ class CudyRouterCard extends HTMLElement {
 		const source = config && typeof config === "object" ? config : {};
 		const safe = {};
 		for (const key of STRING_FIELDS) if (typeof source[key] === "string") safe[key] = source[key].slice(0, 512);
+		if (safe.router_entity && !this._isEntityId(safe.router_entity)) delete safe.router_entity;
 		for (const key of NUMBER_FIELDS) {
 			const value = Number.parseFloat(source[key]);
 			if (Number.isFinite(value) && value > 0) safe[key] = value;
@@ -188,46 +189,47 @@ class CudyRouterCard extends HTMLElement {
 		return new Intl.NumberFormat(this._locale(), { maximumFractionDigits: digits }).format(value);
 	}
 
-	/* ----- device & role resolution (hass.entities / hass.devices, no admin needed) ----- */
-	_ownEntries() { return Object.values(this._hass?.entities || {}).filter((entry) => entry.platform === CUDY_PLATFORM); }
-	_isReboot(entry) { return entry.entity_id.startsWith("button.") && (entry.translation_key === "reboot" || /_reboot$/.test(entry.entity_id)); }
-
-	/** Router device: configured, or the first device exposing the router "reboot" button. */
-	_deviceId() {
-		if (this._config?.device_id) return this._config.device_id;
-		return this._ownEntries().find((entry) => entry.device_id && this._isReboot(entry))?.device_id || "";
+	/* ----- router & role resolution (hass.entities, no admin needed) ----- */
+	/** The router is defined by the Reboot button picked in the config; no auto-detection. */
+	_routerProblem() {
+		const id = this._config?.router_entity;
+		if (!id) return "missing";
+		const entry = this._hass?.entities?.[id];
+		return entry && entry.platform === CUDY_PLATFORM && /^button\..*reboot$/.test(id) && entry.device_id ? "" : "invalid";
 	}
 
 	_resolveRole(mine, prefix, key) {
 		const [domain, slug] = key.split(":");
 		const inDomain = mine.filter((entry) => entry.entity_id.startsWith(`${domain}.`));
-		const byKey = inDomain.find((entry) => entry.translation_key === slug);
-		if (byKey) return byKey.entity_id;
-		const exact = prefix ? inDomain.find((entry) => entry.entity_id === `${domain}.${prefix}${slug}`) : undefined;
+		const exact = inDomain.find((entry) => entry.entity_id === `${domain}.${prefix}${slug}`);
 		if (exact) return exact.entity_id;
 		const objectId = (entry) => entry.entity_id.split(".")[1];
 		return inDomain.filter((entry) => objectId(entry) === slug || objectId(entry).endsWith(`_${slug}`))
 			.sort((a, b) => objectId(a).length - objectId(b).length)[0]?.entity_id;
 	}
 
-	/** Build { role: entity_id } for the selected router device, plus its connected-device trackers. */
+	/** Build { role: entity_id } for the router device, plus the trackers of its config entry. */
 	_buildIndex() {
 		const entities = this._hass?.entities;
 		if (this._index && this._indexEntities === entities) return this._index;
-		const deviceId = this._deviceId();
-		const entryId = this._hass?.devices?.[deviceId]?.primary_config_entry;
-		const own = this._ownEntries();
-		const mine = own.filter((entry) => entry.device_id === deviceId && !entry.entity_id.startsWith("device_tracker."));
-		const reboot = mine.find((entry) => this._isReboot(entry));
-		const prefix = reboot ? reboot.entity_id.split(".")[1].replace(/reboot$/, "") : "";
+		const problem = this._routerProblem();
 		const roles = {};
-		for (const [role, key] of Object.entries(ROLES)) {
-			const entityId = this._resolveRole(mine, prefix, key);
-			if (entityId) roles[role] = entityId;
+		let trackers = [], deviceId = "";
+		if (!problem) {
+			const rebootId = this._config.router_entity;
+			deviceId = entities[rebootId].device_id;
+			const prefix = rebootId.split(".")[1].replace(/reboot$/, "");
+			const entryId = this._hass.devices?.[deviceId]?.primary_config_entry;
+			const own = Object.values(entities).filter((entry) => entry.platform === CUDY_PLATFORM);
+			const mine = own.filter((entry) => entry.device_id === deviceId && !entry.entity_id.startsWith("device_tracker."));
+			for (const [role, key] of Object.entries(ROLES)) {
+				const entityId = this._resolveRole(mine, prefix, key);
+				if (entityId) roles[role] = entityId;
+			}
+			if (entryId) trackers = own.filter((entry) => entry.entity_id.startsWith("device_tracker.") && this._hass.devices?.[entry.device_id]?.primary_config_entry === entryId);
 		}
 		Object.assign(roles, this._config.entities || {});
-		const trackers = entryId ? own.filter((entry) => entry.entity_id.startsWith("device_tracker.") && this._hass.devices?.[entry.device_id]?.primary_config_entry === entryId) : [];
-		this._index = { deviceId, entryId, roles, trackers };
+		this._index = { problem, deviceId, roles, trackers };
 		this._indexEntities = entities;
 		return this._index;
 	}
@@ -245,7 +247,7 @@ class CudyRouterCard extends HTMLElement {
 		const index = this._buildIndex();
 		const ids = [...Object.values(index.roles), ...index.trackers.map((entry) => entry.entity_id)];
 		const states = ids.map((id) => { const state = this._hass.states[id]; return state ? [id, state.state, state.attributes?.unit_of_measurement || "", state.attributes?.options?.length || 0] : [id, null]; });
-		return JSON.stringify({ config: this._config, lang: this._lang(), dark: Boolean(this._hass.themes?.darkMode), device: index.deviceId, states });
+		return JSON.stringify({ config: this._config, lang: this._lang(), dark: Boolean(this._hass.themes?.darkMode), router: this._config.router_entity || "", problem: index.problem, states });
 	}
 
 	/* ----- formatting ----- */
@@ -539,7 +541,7 @@ class CudyRouterCard extends HTMLElement {
 		const config = this._config;
 		let content;
 		if (!this._hass) content = `<div class="empty">${this._esc(this._t("loading"))}</div>`;
-		else if (!this._buildIndex().deviceId) content = `<div class="empty">${this._esc(this._t("no_device"))}</div>`;
+		else if (this._buildIndex().problem) content = `<div class="empty">${this._esc(this._buildIndex().problem === "missing" ? this._t("choose_router") : this._t("router_invalid", { entity: this._config.router_entity }))}</div>`;
 		else {
 			const order = [...new Set([...config.section_order, ...SECTIONS])];
 			const builders = { internet: () => this._internetSection(), system: () => this._systemSection(), wifi: () => this._wifiSection(), devices: () => this._devicesSection(), vpn: () => this._vpnSection(), wisp: () => this._wispSection() };
@@ -551,7 +553,7 @@ class CudyRouterCard extends HTMLElement {
 	}
 
 	/* ----- interactions ----- */
-	_collapsedKey() { return `cudy-router-card:collapsed:${this._config?.device_id || "auto"}`; }
+	_collapsedKey() { return `cudy-router-card:collapsed:${this._config?.router_entity || "none"}`; }
 	_loadCollapsed() { try { this._collapsed = JSON.parse(localStorage.getItem(this._collapsedKey()) || "{}") || {}; } catch (_error) { this._collapsed = {}; } }
 	_saveCollapsed() { try { localStorage.setItem(this._collapsedKey(), JSON.stringify(this._collapsed)); } catch (_error) { /* storage unavailable */ } }
 
@@ -668,7 +670,7 @@ class CudyRouterCardEditor extends HTMLElement {
 	_schema() {
 		const toggles = ["show_header", "show_card_background", "show_live_metrics", "show_bandwidth_history", "show_controls", "show_reboot_button", ...SECTIONS.map((key) => `show_${key}`)];
 		return [
-			{ name: "device_id", selector: { device: { integration: CUDY_PLATFORM } } },
+			{ name: "router_entity", required: true, selector: { entity: { domain: "button", integration: CUDY_PLATFORM } } },
 			{ name: "name", selector: { text: {} } },
 			{ name: "language", selector: { select: { mode: "dropdown", options: [{ value: "auto", label: "Auto" }, ...Object.keys(TRANSLATIONS).map((value) => ({ value, label: value.toUpperCase() }))] } } },
 			{ name: "history_hours", selector: { number: { min: 1, max: 168, mode: "box", unit_of_measurement: "h" } } },

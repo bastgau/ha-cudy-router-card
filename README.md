@@ -12,7 +12,7 @@ HACS → Custom repositories → `https://github.com/bastgau/ha-cudy-router-card
 
 ```yaml
 type: custom:cudy-router-card
-device_id: 233737be76ee725f69d9ec7cec80f9ae   # optional, auto-detected
+router_entity: button.network_cudy_router_reboot   # required
 name: Cudy
 download_bandwidth: 300      # Mbit/s, scale of the gauges
 upload_bandwidth: 100
@@ -26,7 +26,7 @@ entities:                    # optional override per role
 
 | Option | Default | Description |
 |---|---|---|
-| `device_id` | auto | Cudy router device |
+| `router_entity` | **required** | The router's *Reboot* button (`button.<prefix>reboot`), see below |
 | `name` | `Cudy` | Card title |
 | `language` | `auto` | `auto`, `en`, `fr` |
 | `download_bandwidth`, `upload_bandwidth` | – | Maximum in Mbit/s (gauge colors) |
@@ -40,13 +40,15 @@ entities:                    # optional override per role
 
 ## How entities are found
 
-Everything is read from `hass.entities` and `hass.devices`, so the card works for **every user**, not only administrators.
+Everything is read from `hass.entities` and `hass.devices`, so the card works for **every user**, not only administrators. Nothing is auto-detected: you choose the router by picking its **Reboot button** in the card editor (`router_entity`).
 
-1. The router is the `device_id` you pick. Without it, the first device exposing a `cudy_router` `button.<prefix>reboot` is used.
-2. The **prefix** is the part of that reboot button's entity id before `reboot`. For `button.network_cudy_router_reboot` the prefix is `network_cudy_router_`.
+1. The router device is the device of that button.
+2. The **prefix** is the part of the button's entity id before `reboot`. For `button.network_cudy_router_reboot` the prefix is `network_cudy_router_`.
 3. For each role, the card looks, among the `cudy_router` entities of the router device, for `<domain>.<prefix><slug>` (exact match). If it does not exist, it takes the **shortest** entity id of that domain that ends with `_<slug>` (so `protocol` is never confused with `vpn_protocol`, nor `dns` with `preferred_dns`).
-4. The `entities:` option always wins over steps 2 and 3.
+4. The `entities:` option always wins over step 3.
 5. Connected devices are the `device_tracker` entities of the `cudy_router` platform whose device belongs to the same config entry as the router.
+
+If `router_entity` is missing, or is not the Reboot button of a `cudy_router` entity, the card shows an error instead of guessing.
 
 The integration does not set a `translation_key` on its entities, so matching relies on entity ids: renaming an entity's *display name* changes nothing, but if you rename an *entity id*, force the role with `entities:`.
 
