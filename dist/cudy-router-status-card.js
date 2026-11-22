@@ -449,7 +449,7 @@ class CudyRouterStatusCard extends HTMLElement {
 			this._row("mdi:clock-outline", this._t("uptime"), this._durationOf("uptime"), "uptime"),
 			this._row("mdi:ip-network-outline", this._t("lan_ip"), this._text("lanIp"), "lanIp"),
 			this._row("mdi:ethernet", this._t("lan_mac"), this._text("lanMac"), "lanMac"),
-			this._row("mdi:subnet", this._t("subnet"), this._text("subnet"), "subnet"),
+			this._row("mdi:network-outline", this._t("subnet"), this._text("subnet"), "subnet"),
 			this._row("mdi:gate", this._t("gateway"), this._text("wanGateway"), "wanGateway"),
 			this._row("mdi:dns", this._t("dns"), this._text("dns"), "dns"),
 			this._row("mdi:clock-time-four-outline", this._t("local_time"), this._text("localTime"), "localTime"),
